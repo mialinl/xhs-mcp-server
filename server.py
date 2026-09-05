@@ -344,8 +344,20 @@ async def xhs_peek(url: str, image_mode: str = "inline") -> list:
 
 def _get_base_url(request: Request) -> str:
     scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+    # Cloudflare 终止 SSL 后用 HTTP 连 nginx，但对外必须是 HTTPS
+    if scheme == "http":
+        scheme = "https"
     host = request.headers.get("host", request.url.netloc)
     return f"{scheme}://{host}"
+
+
+async def oauth_protected_resource(request: Request):
+    base = _get_base_url(request)
+    return JSONResponse({
+        "resource": f"{base}/mcp",
+        "authorization_servers": [base],
+        "bearer_methods_supported": ["header"],
+    })
 
 
 async def oauth_metadata(request: Request):
@@ -564,6 +576,8 @@ class AuthMiddleware:
 
 
 oauth_routes = [
+    Route("/.well-known/oauth-protected-resource", oauth_protected_resource),
+    Route("/.well-known/oauth-protected-resource/mcp", oauth_protected_resource),
     Route("/.well-known/oauth-authorization-server", oauth_metadata),
     Route("/register", register_client, methods=["POST"]),
     Route("/authorize", authorize, methods=["GET", "POST"]),
@@ -587,16 +601,30 @@ class CombinedApp:
 
         if scope["type"] == "http" and scope.get("path", "").startswith("/mcp"):
             auth = b""
+            host = b""
+            scheme = b"https"
             for key, value in scope.get("headers", []):
                 if key == b"authorization":
                     auth = value
-                    break
+                elif key == b"host":
+                    host = value
+                elif key == b"x-forwarded-proto":
+                    scheme = value
             if auth.startswith(b"Bearer "):
                 token = auth[7:].decode()
                 if token in _access_tokens:
                     await self.mcp_app(scope, receive, send)
                     return
-            response = JSONResponse({"error": "unauthorized"}, status_code=401)
+            base = f"{scheme.decode()}://{host.decode()}"
+            resource_meta_url = f"{base}/.well-known/oauth-protected-resource"
+            response = Response(
+                content=json.dumps({"error": "unauthorized"}),
+                status_code=401,
+                media_type="application/json",
+                headers={
+                    "WWW-Authenticate": f'Bearer resource_metadata="{resource_meta_url}"',
+                },
+            )
             await response(scope, receive, send)
             return
 
