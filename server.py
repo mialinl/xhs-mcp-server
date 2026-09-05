@@ -324,14 +324,14 @@ async def xhs_peek(url: str, image_mode: str = "inline") -> list:
                     if frames:
                         result.append(f"📽️ 视频抽帧（共 {len(frames)} 帧，按时间顺序排列）：")
                         for i, frame_data in enumerate(frames):
-                            result.append(Image(data=frame_data, media_type="image/jpeg"))
+                            result.append(Image(data=frame_data, format="jpeg"))
                     else:
                         result.append("⚠️ 视频抽帧失败。可能是视频过大或 ffmpeg 不可用。")
                         if image_urls:
                             result.append("📸 降级为封面图：")
                             cover_data = await _download_image(client, image_urls[0])
                             if cover_data:
-                                result.append(Image(data=cover_data, media_type="image/jpeg"))
+                                result.append(Image(data=cover_data, format="jpeg"))
                 else:
                     result.append("⚠️ 未能提取视频链接。")
         comments = note.get("comments") or []
