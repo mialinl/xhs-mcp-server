@@ -115,15 +115,20 @@ def _extract_note_data(state: dict) -> dict | None:
 
 
 def _get_first_note(detail_map: dict) -> dict | None:
-    if isinstance(detail_map, dict):
-        for key in detail_map:
-            note = detail_map[key]
-            if isinstance(note, dict) and "note" in note:
-                inner = note["note"]
-                if isinstance(inner, dict):
-                    return inner
-            if isinstance(note, dict):
-                return note
+    if not isinstance(detail_map, dict):
+        return None
+    # If detail_map itself looks like a note (has noteId/type/imageList), use it directly
+    if "noteId" in detail_map or ("type" in detail_map and "imageList" in detail_map):
+        return detail_map
+    # Otherwise it's a map like {noteId: {note: {...}, ...}}
+    for key in detail_map:
+        note = detail_map[key]
+        if isinstance(note, dict) and "note" in note:
+            inner = note["note"]
+            if isinstance(inner, dict):
+                return inner
+        if isinstance(note, dict) and ("noteId" in note or "title" in note):
+            return note
     return None
 
 
@@ -286,11 +291,6 @@ async def xhs_peek(url: str, image_mode: str = "inline") -> list:
         note = _get_first_note(detail_map)
         if not note:
             return ["❌ 无法解析笔记内容。"]
-        # Debug: if title and user are both missing, dump keys to help diagnose
-        if not note.get("title") and not note.get("user"):
-            debug_keys = list(note.keys())[:20]
-            sample = {k: (type(note[k]).__name__ if not isinstance(note[k], str) else note[k][:80]) for k in debug_keys}
-            return [f"🔍 调试信息：note 的 keys 和类型/值样本：\n{json.dumps(sample, ensure_ascii=False, indent=2)}\n\ndetail_map keys: {list(detail_map.keys())[:5]}"]
         result = []
         text = _format_note_text(note)
         result.append(text)
