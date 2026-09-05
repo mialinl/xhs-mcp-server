@@ -286,6 +286,11 @@ async def xhs_peek(url: str, image_mode: str = "inline") -> list:
         note = _get_first_note(detail_map)
         if not note:
             return ["❌ 无法解析笔记内容。"]
+        # Debug: if title and user are both missing, dump keys to help diagnose
+        if not note.get("title") and not note.get("user"):
+            debug_keys = list(note.keys())[:20]
+            sample = {k: (type(note[k]).__name__ if not isinstance(note[k], str) else note[k][:80]) for k in debug_keys}
+            return [f"🔍 调试信息：note 的 keys 和类型/值样本：\n{json.dumps(sample, ensure_ascii=False, indent=2)}\n\ndetail_map keys: {list(detail_map.keys())[:5]}"]
         result = []
         text = _format_note_text(note)
         result.append(text)
