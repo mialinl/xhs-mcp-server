@@ -313,7 +313,7 @@ async def xhs_peek(url: str, image_mode: str = "inline") -> list:
                 for i, img_url in enumerate(image_urls):
                     img_data = await _download_image(client, img_url)
                     if img_data:
-                        result.append(Image(data=img_data, media_type="image/jpeg"))
+                        result.append(Image(data=img_data, format="jpeg"))
                     else:
                         result.append(f"  [图{i+1}] 下载失败：{img_url}")
             if is_video:
