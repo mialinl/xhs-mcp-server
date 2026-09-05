@@ -80,7 +80,7 @@ def _set_cache(url: str, result: list):
 
 
 async def _resolve_short_link(client: httpx.AsyncClient, url: str) -> str:
-    if "xhslink.com" in url:
+    if "xhslink.com" in url or "xhslink.cn" in url:
         resp = await client.get(url, headers=HEADERS, follow_redirects=True)
         return str(resp.url)
     return url
@@ -119,9 +119,12 @@ def _get_first_note(detail_map: dict) -> dict | None:
         for key in detail_map:
             note = detail_map[key]
             if isinstance(note, dict) and "note" in note:
-                return note["note"]
-            return note
-    return detail_map if isinstance(detail_map, dict) else None
+                inner = note["note"]
+                if isinstance(inner, dict):
+                    return inner
+            if isinstance(note, dict):
+                return note
+    return None
 
 
 def _extract_images(note: dict) -> list[str]:
